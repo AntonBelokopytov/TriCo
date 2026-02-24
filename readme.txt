@@ -1,7 +1,9 @@
 libraries to install:
 
-https://github.com/alexandrebarachant/covariancetoolbox
+Covariance matrices: https://github.com/alexandrebarachant/covariancetoolbox
 
-https://www.mathworks.com/matlabcentral/fileexchange/71902-uniform-manifold-approximation-and-projection-umap
+UMAP: https://www.mathworks.com/matlabcentral/fileexchange/71902-uniform-manifold-approximation-and-projection-umap
 
-https://www.mathworks.com/matlabcentral/fileexchange/55891-fieldtrip
+Fieldtrip: https://www.mathworks.com/matlabcentral/fileexchange/55891-fieldtrip
+
+Data: https://drive.google.com/drive/folders/1uxSsBCCkTNMPzyf7fSFK3O87xk00QWFL?usp=sharing

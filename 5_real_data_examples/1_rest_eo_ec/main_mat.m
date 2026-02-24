@@ -1,9 +1,14 @@
-% close all
-clear all
+close all
+clear
 clc
 
-% Добавляем FieldTrip
-addpath('D:\OS(CURRENT)\libs\fieldtrip')
+ft_path = 'D:\OS(CURRENT)\scripts\eSPoC_UMAP\0_2AOS\fieldtrip';
+
+if ~exist('ft_defaults','file')
+    addpath(ft_path);
+end
+
+ft_defaults;
 
 %% =====================================================================
 %  Load continuous MEG/EEG data
@@ -68,7 +73,6 @@ n_components = max(min(n_components, r), 1);
 % PCA projection
 U = U(:,1:n_components);
 Xpca = U'*Xfilt;
-Xpca = Xpca';
 
 %% =====================================================================
 %  Epoching
@@ -77,7 +81,7 @@ Xpca = Xpca';
 Ws = 2;   % window size (seconds)
 Ss = 1;   % step size (seconds)
 
-epochs = epoch_data(Xpca,Fs,Ws,Ss);
+epochs = epoch_data(Xpca',Fs,Ws,Ss);
 
 %% =====================================================================
 %  Covariance matrices and vectorization
@@ -128,7 +132,7 @@ zlabel('UMAP component 3')
 %% =====================================================================
 %  eSPoC: correlate source envelopes with UMAP coordinates
 % =====================================================================
-[W, A, Vx, Vz, corrs, VecCov, Epochs_cov, eigenvalues] = espoc(epochs, R');
+[W, A, Vf, Vz, corrs, VecCov, Epochs_cov, eigenvalues] = espoc(epochs, R');
 
 figure; stem(corrs');
 legend('1','2','3')
@@ -136,7 +140,7 @@ legend('1','2','3')
 Rmean = R - mean(R,1);
 
 %%
-gl_src = Vx'*VecCov;
+gl_src = Vf'*VecCov;
 emb_can_pr = Vz'*Rmean';
 
 corr(gl_src',emb_can_pr')
@@ -199,10 +203,10 @@ parfor i=1:1000
     i
     
     % Circular time shift destroys temporal alignment
-    r_idx = fix(rand*size(Xpca,1));
-    XCirc = circshift(Xpca,[r_idx,0]);
+    r_idx = fix(rand*size(Xpca,2));
+    XCirc = circshift(Xpca,[0,r_idx]);
     
-    X_test = epoch_data(XCirc, Fs, Ws, Ss);
+    X_test = epoch_data(XCirc', Fs, Ws, Ss);
     
     [~, ~, ~, ~, corrs] = espoc(X_test, R');
 
@@ -342,14 +346,13 @@ title('Axis 1');
 %% =====================================================================
 %  Spatial filters, patterns, and source visualization
 % =====================================================================
-
 % Select global source index and local component (eigenmode)
-src_idx  = 1;
-comp_idx = 10;
+gl_src_idx  = 1;
+lcl_src_idx = 10;
 
 % Project filter and pattern back to sensor space (undo PCA)
-ax = U * A(src_idx,:,comp_idx)';
-wx = U * W(src_idx,:,comp_idx)';
+ax = U * A(gl_src_idx,:,lcl_src_idx)';
+wx = U * W(gl_src_idx,:,lcl_src_idx)';
 
 % Fix sign ambiguity (filters/patterns are defined up to sign)
 [~, idx] = max(abs(wx));
@@ -366,7 +369,7 @@ figure
 set(gcf,'Color','w');
 t = tiledlayout(2,2, 'TileSpacing','compact', 'Padding','compact');
 sgtitle(['Source Envelope - UMAP correlation: ', ...
-         num2str(corrs(src_idx,comp_idx))])
+         num2str(corrs(gl_src_idx,lcl_src_idx))])
 
 % --- Spatial filter topography
 ax1 = nexttile(t, 1); 
@@ -397,7 +400,7 @@ plot(S)
 plot(abs(hilbert(S)))
 
 % Canonical UMAP projection (normalized)
-zz = Vz(:,src_idx)' * Rmean';
+zz = Vz(:,gl_src_idx)' * Rmean';
 zz = - (zz - mean(zz)) / std(zz);
 
 plot((1:size(zz,2)) * Ss * Fs, zz, ...

@@ -1,11 +1,14 @@
-% =====================================================================
-% INITIALIZATION
-% =====================================================================
-% Clear workspace and add FieldTrip path
-% close all
-clear all
-% clc
-addpath('D:\OS(CURRENT)\libs\fieldtrip')
+close all
+clear
+clc
+
+ft_path = 'D:\OS(CURRENT)\scripts\eSPoC_UMAP\0_2AOS\fieldtrip';
+
+if ~exist('ft_defaults','file')
+    addpath(ft_path);
+end
+
+ft_defaults;
 
 %% =====================================================================
 % LOAD DATA
@@ -154,6 +157,72 @@ figure; stem(corrs'); legend('1','2','3')
 % Zero-mean UMAP coordinates across epochs
 Rmean = R - mean(R,1);
 
+%%
+% Global source activation in covariance space
+gl_src = Vf'*VecCov;
+emb_can_pr = Vz'*Rmean';
+
+corr(gl_src',emb_can_pr')
+
+figure; set(gcf,'Color','w');
+tiledlayout(3,2)
+
+nexttile(1,[3,1])
+x = Vz(:,1)'*Rmean'; y = Vz(:,2)'*Rmean'; z = Vz(:,3)'*Rmean';
+start_index = 0; 
+
+cmap = parula(N_epoch_trial); 
+data_points_per_iteration = N_epoch_trial;
+for i=1:80
+    current_indices = start_index + (1:data_points_per_iteration);
+    if max(current_indices) > length(x), warning('Index out of bounds.'); break; end
+    color_data = 1:data_points_per_iteration;
+    scatter3(x(current_indices), y(current_indices), z(current_indices), 30, color_data, 'filled'); 
+    hold on
+    start_index = start_index + data_points_per_iteration;
+end
+
+colormap(cmap);
+c = colorbar;
+time_step = 0.5;
+nPoints = data_points_per_iteration;
+time_labels = (1:nPoints) * time_step;
+c.Ticks = linspace(1,nPoints,nPoints);
+c.TickLabels = arrayfun(@(t) sprintf('%.1f',t), time_labels, 'UniformOutput', false);
+c.Label.String = 'Time within trial (s)';
+
+xlabel('UMAP canonical axis 1')
+ylabel('UMAP canonical axis 2')
+zlabel('UMAP canonical axis 3')
+
+for i=1:3
+    nexttile(i*2)
+
+    gl_src_n = gl_src(i,:);
+    gl_src_n = (gl_src_n - mean(gl_src_n)) / std(gl_src_n);
+
+    emb_can_pr_n = emb_can_pr(i,:);
+    emb_can_pr_n = (emb_can_pr_n - mean(emb_can_pr_n)) / std(emb_can_pr_n);
+
+    plot(gl_src_n,'blue')
+    hold on
+    plot(emb_can_pr_n,'red')
+
+    title(['component ', num2str(i), ' | ', 'corr: ', round(num2str(corr(gl_src_n',emb_can_pr_n'),2))])
+    grid()
+
+    xticks(40:40:size(Rmean,1))
+    xticklabels(time(40:40:end))
+    
+    if i==1
+        legend('Global source signal', 'UMAP canonical projection')
+    end
+    if i==3
+        xlabel('t, sec')
+    end
+    
+end
+
 %% =====================================================================
 % UMAP SCATTER PLOTS WITH COLOR GRADIENT
 % =====================================================================
@@ -161,7 +230,7 @@ Rmean = R - mean(R,1);
 figure; set(gcf,'Color','w');
 t = tiledlayout(1,2);
 
-%% ---------------------------------------------------------------------
+% ---------------------------------------------------------------------
 % Original embedding (UMAP space)
 % ---------------------------------------------------------------------
 
@@ -261,7 +330,9 @@ view(-45, 30);
 
 % Select global source index and local eigen-component
 gl_src_idx  = 1; 
-lcl_src_idx = 1;
+
+[~, idx] = max(abs(corrs(1,:)));
+lcl_src_idx = idx;
 
 % Back-project spatial filter and pattern from PCA space to sensor space
 wx = U * W(gl_src_idx,:,lcl_src_idx)';    % spatial filter
@@ -348,7 +419,7 @@ wx = wx .* sign(wx(idx));
 [~, idx] = max(abs(ax));
 ax = ax .* sign(ax(idx));
 
-%% =====================================================================
+% =====================================================================
 % Extract source signal and envelope for all epochs
 % =====================================================================
 
@@ -365,7 +436,7 @@ for ep_idx = 1:nEpochs
     Yenv(:,ep_idx) = en;            % store envelope
 end
 
-%% =====================================================================
+% =====================================================================
 % Create visualization figure
 % =====================================================================
 

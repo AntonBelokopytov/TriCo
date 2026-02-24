@@ -1,8 +1,14 @@
-% close all
-clear all
-% clc
+close all
+clear
+clc
 
-addpath('D:\OS(CURRENT)\libs\fieldtrip')
+ft_path = 'D:\OS(CURRENT)\scripts\eSPoC_UMAP\0_2AOS\fieldtrip';
+
+if ~exist('ft_defaults','file')
+    addpath(ft_path);
+end
+
+ft_defaults;
 
 %%
 sub_path = 'data/sub1_clear_epochs.fif';
@@ -181,7 +187,7 @@ xlabel('Local component index')
 ylabel('Correlation')
 title('eSPoC correlation values')
 
-legend({'Canonical 1','Canonical 2','Canonical 3'}, 'Location','best')
+legend({'Global 1','Global 2','Global 3'}, 'Location','best')
 
 xlim([1 size(corrs,2)])
 
