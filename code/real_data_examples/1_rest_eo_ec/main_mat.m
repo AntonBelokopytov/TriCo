@@ -13,7 +13,7 @@ ft_defaults;
 %% =====================================================================
 %  Load continuous MEG/EEG data
 % =====================================================================
-sub_path = 'data/sub1_rest_ec_eo.fif';
+sub_path = 'sub1_rest_ec_eo_raw.fif';
 
 cfg = [];
 cfg.dataset = sub_path;

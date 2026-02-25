@@ -13,7 +13,7 @@ ft_defaults;
 %% =====================================================================
 % LOAD DATA
 % =====================================================================
-sub_path = 'data/Patient1_OFF_2-35Hz_pp2s_epochs.fif';
+sub_path = 'sub1_center_out_epochs.fif';
 
 cfg = [];
 cfg.dataset = sub_path;

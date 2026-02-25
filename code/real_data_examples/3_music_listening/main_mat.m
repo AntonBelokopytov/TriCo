@@ -11,7 +11,7 @@ end
 ft_defaults;
 
 %%
-sub_path = 'data/sub1_clear_epochs.fif';
+sub_path = 'sub1_music_epochs.fif';
 
 cfg = [];
 cfg.dataset = sub_path;
