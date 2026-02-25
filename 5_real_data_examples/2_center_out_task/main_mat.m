@@ -26,6 +26,7 @@ topo.dimord = 'chan_time';
 topo.label  = Xinf.elec.label;  
 topo.time   = 0;
 topo.elec   = Xinf.elec;
+topo.time    = 0;
 
 % Prepare FieldTrip layout for topography plotting
 laycfg = [];
@@ -359,7 +360,6 @@ ax1 = nexttile(t,1);
 title(ax1,'Filter');
 topo.avg = wx; 
 cfg.figure = ax1;
-cfg.marker = 'labels';
 ft_topoplotER(cfg, topo); 
 
 % --- Spatial pattern (forward model)
@@ -386,7 +386,7 @@ plot(abs(hilbert(S)))   % analytic envelope
 
 % Canonical projection of embedding
 zz = Vz(:,gl_src_idx)' * Rmean';
-zz = (zz - mean(zz)) / std(zz);
+zz = sign(corrs(gl_src_idx,lcl_src_idx)) * (zz - mean(zz)) / std(zz);
 plot(time*Fs, zz, 'LineWidth', 1.5, 'Color','green')
 
 % Format time axis
@@ -400,13 +400,15 @@ legend('Source signal', ...
 
 ylabel('Source signal')
 xlabel('t, sec')
+
 %% =====================================================================
 % Source and component selection
 % =====================================================================
 
-% Select global (CCA) source and local eigenmode
+% Select global source and local eigenmode
 gl_src_idx  = 1;
-lcl_src_idx = 1;
+[~, idx] = max(abs(corrs(1,:)));
+lcl_src_idx = idx;
 
 % Back-project spatial filter and pattern to sensor space (undo PCA)
 wx = U * W(gl_src_idx,:,lcl_src_idx)';   % spatial filter
@@ -522,20 +524,20 @@ axFiltTopo = nexttile(t6, 1);
 set(axFiltTopo, 'Color','w');
 
 cfg.marker = 'no';
-topoF.avg  = wx;
+topo.avg  = wx;
 cfg.figure = axFiltTopo;
 
-ft_topoplotER(cfg, topoF);
+ft_topoplotER(cfg, topo);
 title(axFiltTopo,'Filter');
 
 % ---- Pattern topography ----
 axPatTopo = nexttile(t6, 2);
 set(axPatTopo, 'Color','w');
 
-topoP.avg = ax;
+topo.avg = ax;
 cfg.figure = axPatTopo;
 
-ft_topoplotER(cfg, topoP);
+ft_topoplotER(cfg, topo);
 title(axPatTopo,'Pattern');
 
 % Ensure white background

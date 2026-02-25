@@ -1,9 +1,12 @@
-clc
 close all
-clear all
-    
-% Add fieldtrip
-addpath('D:\OS(CURRENT)\libs\fieldtrip')
+clear
+clc
+
+ft_path = 'C:\Users\ansbel\Documents\2Git\fieldtrip\fieldtrip';
+
+if ~exist('ft_defaults','file')
+    addpath(ft_path);
+end
 
 %%
 G = load("MNE_EEG_FWD_TRPL.mat").MNE_EEG_FWD_TRPL;

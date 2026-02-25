@@ -91,16 +91,16 @@ opt= set_defaults(opt, ...
 [VecCov, Wm, Cxx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
 Cf = cov(VecCov');
 
-[VecCovdr, Ux] = project_to_pc(VecCov, opt.X_min_var_explained);
+[VecCovdr, Uf] = project_to_pc(VecCov, opt.X_min_var_explained);
 
 if strcmp(opt.cca_mode, 'regularized')
-    [Vf, Vz] = cca(VecCovdr', z', opt);
+    [Vfdr, Vz] = cca(VecCovdr', z', opt);
 elseif strcmp(opt.cca_mode, 'standard') 
-    [Vf, Vz] = canoncorr(VecCovdr', z');
+    [Vfdr, Vz] = canoncorr(VecCovdr', z');
 end
-
 % Return found filters from dimension reduced space 
-Af = Cf*Ux*Vf;
+Vf = Uf*Vfdr;
+Af = Cf*Vf;
 
 % Project and normalize EEG/MEG filters
 for global_src_idx=1:size(Af,2)
