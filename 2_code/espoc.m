@@ -104,7 +104,7 @@ Af = Cf*Vf;
 
 % Project and normalize EEG/MEG filters
 for global_src_idx=1:size(Af,2)
-    [w, a, s] = project_filters_to_manifold(Af(:,global_src_idx), Wm, Cx);
+    [w, a, s] = project_to_manifold(Af(:,global_src_idx), Wm, Cx);
     
     % Project target variable to its CCA component 
     Zpr = Vz(:,global_src_idx)'*z;
@@ -260,7 +260,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [W, A, s] = project_filters_to_manifold(V, Wm, Cxx)
+function [W, A, s] = project_to_manifold(V, Wm, Cxx)
 
 % Project filters to manifold
 WW = upper2cov(V);
