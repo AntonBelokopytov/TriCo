@@ -88,7 +88,7 @@ opt= set_defaults(opt, ...
                   'cca_reg', 0.1);
 
 % ---
-[VecCov, Wm, Cxx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
+[VecCov, Wm, Cx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
 Cf = cov(VecCov');
 
 [VecCovdr, Uf] = project_to_pc(VecCov, opt.X_min_var_explained);
@@ -104,17 +104,17 @@ Af = Cf*Vf;
 
 % Project and normalize EEG/MEG filters
 for global_src_idx=1:size(Af,2)
-    [w, a, s] = project_filters_to_manifold(Af(:,global_src_idx), Wm, Cxx);
+    [w, a, s] = project_filters_to_manifold(Af(:,global_src_idx), Wm, Cx);
     
     % Project target variable to its CCA component 
     Zpr = Vz(:,global_src_idx)'*z;
     
     % Find correlation of the filters
-    for filt_idx=1:size(w,2)
+    for local_src_idx=1:size(w,2)
         for ep_idx=1:size(Epochs_cov,3)
-            Env(ep_idx) = w(:,filt_idx)' * Epochs_cov(:,:,ep_idx) * w(:,filt_idx);
+            Env(ep_idx) = w(:,local_src_idx)' * Epochs_cov(:,:,ep_idx) * w(:,local_src_idx);
         end
-        cr(filt_idx)=corr(Env',Zpr');
+        cr(local_src_idx)=corr(Env',Zpr');
     end
     % [cr,idx] = sort(cr,'descend');
     % w = w(:,idx);
