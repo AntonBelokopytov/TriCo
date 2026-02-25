@@ -1,4 +1,4 @@
-function [W, A, Vf, Vz, corrs, VecCov, Epochs_cov, eigenvalues] = espoc(X_epochs, z, varargin)
+function [W, A, Vf, Vz, corrs, Feat, Epochs_cov, eigenvalues] = espoc(X_epochs, z, varargin)
 % Extended Source Power Co-modulation (eSPoC)
 %
 % This function implements the eSPoC framework for explaining variability
@@ -64,7 +64,7 @@ function [W, A, Vf, Vz, corrs, VecCov, Epochs_cov, eigenvalues] = espoc(X_epochs
 %   corrs       - Correlation between reconstructed source power
 %                 and projected regressor
 %
-%   VecCov      - Vectorized covariance features (before PCA)
+%   F           - Vectorized covariance features (before PCA)
 %
 %   Epochs_cov  - Epoch-wise covariance matrices
 %
@@ -88,15 +88,15 @@ opt= set_defaults(opt, ...
                   'cca_reg', 0.1);
 
 % ---
-[VecCov, Wm, Cx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
-Cf = cov(VecCov');
+[Feat, Wm, Cx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
+Cf = cov(Feat');
 
-[VecCovdr, Uf] = project_to_pc(VecCov, opt.X_min_var_explained);
+[Featdr, Uf] = project_to_pc(Feat, opt.X_min_var_explained);
 
 if strcmp(opt.cca_mode, 'regularized')
-    [Vfdr, Vz] = cca(VecCovdr', z', opt);
+    [Vfdr, Vz] = cca(Featdr', z', opt);
 elseif strcmp(opt.cca_mode, 'standard') 
-    [Vfdr, Vz] = canoncorr(VecCovdr', z');
+    [Vfdr, Vz] = canoncorr(Featdr', z');
 end
 % Return found filters from dimension reduced space 
 Vf = Uf*Vfdr;

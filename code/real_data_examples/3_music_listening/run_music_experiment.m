@@ -34,8 +34,6 @@ cfg.comment      = 'no';
 cfg.style        = 'fill';
 cfg.markersymbol = 'o';
 cfg.colorbar     = 'no'; 
-cfg.layout.pos(:, 1:2) = cfg.layout.pos(:, 1:2) * 1.1; 
-cfg.layout.pos(:, 2) = cfg.layout.pos(:, 2) - 0.05;
 
 %%
 conditions = {'(1) RS EC 1', '(2) RS EO 1', '(3) 2Hz', '(4) 05Hz', '(5) 4Hz', '(6) 1Hz', '(7) 3Hz', ...

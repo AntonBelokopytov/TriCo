@@ -39,8 +39,6 @@ cfg.comment      = 'no';
 cfg.style        = 'fill';
 cfg.markersymbol = 'o';
 cfg.colorbar     = 'yes'; 
-cfg.layout.pos(:, 1:2) = cfg.layout.pos(:, 1:2) * 1.1; 
-cfg.layout.pos(:, 2) = cfg.layout.pos(:, 2) - 0.05;
 
 %% =====================================================================
 % BANDPASS FILTERING (ALPHA BAND)

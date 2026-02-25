@@ -7,10 +7,10 @@ Created on Wed Oct 22 17:07:11 2025
 import mne
 
 # %%
-fpath = "data/sub1_rest_ec_eo.fif"
+fpath = "C:/Users/ansbel/Documents/2Git/TriCo/data/external/sub1_rest_ec_eo_raw.fif"
 
 # %%
-raw = mne.io.read_raw_fif(fpath,preload=True)
+raw = mne.io.read_raw(fpath,preload=True)
 
 # %%
 raw.plot()
