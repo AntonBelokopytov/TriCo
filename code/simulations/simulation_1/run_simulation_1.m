@@ -2,15 +2,17 @@ close all
 clear
 clc
 
-ft_path = 'C:\Users\ansbel\Documents\2Git\fieldtrip\fieldtrip';
+ft_path = 'C:\Users\ansbel\Documents\2Git\fieldtrip';
 
 if ~exist('ft_defaults','file')
     addpath(ft_path);
 end
 
+ft_defaults;
+
 %%
 G = load("MNE_EEG_FWD_TRPL.mat").MNE_EEG_FWD_TRPL;
-elec = load("elec.mat").elec;
+elec = load("electrodes_data.mat").electrodes_data;
 
 topo = [];
 topo.dimord = 'chan_time';
@@ -29,8 +31,6 @@ cfg.comment      = 'no';
 cfg.style        = 'fill';
 cfg.markersymbol = '';
 cfg.colorbar     = 'yes'; 
-cfg.layout.pos(:, 1:2) = cfg.layout.pos(:, 1:2) * 1.1; 
-cfg.layout.pos(:, 2) = cfg.layout.pos(:, 2) - 0.05;
 
 %% =================== ПАРАМЕТРЫ СИМУЛЯЦИИ ===================
 Nsrc = 100;     % количество источников

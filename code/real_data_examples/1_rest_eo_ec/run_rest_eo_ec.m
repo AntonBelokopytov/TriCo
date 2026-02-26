@@ -2,7 +2,7 @@ close all
 clear
 clc
 
-ft_path = 'D:\OS(CURRENT)\scripts\eSPoC_UMAP\0_2AOS\fieldtrip';
+ft_path = 'C:\Users\ansbel\Documents\2Git\fieldtrip';
 
 if ~exist('ft_defaults','file')
     addpath(ft_path);

@@ -1,12 +1,14 @@
-function [X_s, X_bg, X_n, z, GA] = generate_distributed_sources(G, Nsrc, Ndistr,...
+function [X_s, X_bg, X_n, z, GA] = generate_low_distributed_sources(G, Nsrc, Ndistr,...
     flanker, Ts, Fs)
 
 N = Ts*Fs;
 flanker = flanker*Fs;
 
 %set filters
-[b,a] = butter(5,[8,12]/(Fs/2)); % for sources
-[bn,an] = butter(5,[1,35]/(Fs/2)); % for noise
+[b,a] = butter(3,[8,12]/(Fs/2)); % for sources
+[bn,an] = butter(3,[1,35]/(Fs/2)); % for noise
+[bl,al] = butter(3, 0.5/(Fs/2)); % for modulation < 0.5 Гц
+[be,ae] = butter(3,5/(Fs/2)); % for envelope noise
 
 % init forward model
 Gx = G(:,1:3:end);  
@@ -30,9 +32,31 @@ S = S(:,flanker+1:end-flanker);
 
 % Create random envelopes for every source
 for k=1:Nsrc
-    S(k,:) = (S(k,:)-mean(S(k,:))) / std(S(k,:));
+    S(k,:) = (S(k,:) - mean(S(k,:)));
     env = abs(hilbert(S(k,:)')');
-    z(k,:) = env;
+    S(k,:) = S(k,:) ./ env;
+
+
+    mk = filtfilt(bl,al,randn(1,N+2*flanker));
+    mk = mk(:,flanker+1:end-flanker);
+    
+    mk_clean = mk - min(mk) + eps;
+    
+    % Add some envelope noise
+    en = filtfilt(be,ae,randn(1,N+2*flanker));
+    en = en(:,flanker+1:end-flanker);
+    en_noize = en./norm(en);
+
+    mk_noise = mk + 0.1*norm(mk)*en_noize;
+    mk_noise = mk_noise - min(mk_noise) + eps;
+
+
+    S(k,:) = S(k,:).*mk_noise; 
+    s_std = std(S(k,:));
+    S(k,:) = S(k,:) ./ s_std;  
+
+    
+    z(k,:) = mk_clean;
 end
 
 % generate clean sensor data

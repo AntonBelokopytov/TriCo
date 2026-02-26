@@ -83,15 +83,15 @@ function [W, A, Vf, Vz, corrs, Feat, Epochs_cov, eigenvalues] = espoc(X_epochs, 
 opt= propertylist2struct(varargin{:});
 opt= set_defaults(opt, ...
                   'X_min_var_explained', 1, ...
-                  'whitening_reg', 0.0001, ...
-                  'cca_mode', 'standard', ...
-                  'cca_reg', 0.1);
+                  'whitening_reg', 0, ...
+                  'cca_mode', 'regularized', ...
+                  'cca_reg', 0);
 
 % ---
-[Feat, Wm, Cx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
-Cf = cov(Feat');
+[Feat, Wm, Cxx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
 
 [Featdr, Uf] = project_to_pc(Feat, opt.X_min_var_explained);
+Cff = cov(Featdr');
 
 if strcmp(opt.cca_mode, 'regularized')
     [Vfdr, Vz] = cca(Featdr', Z', opt);
@@ -100,11 +100,11 @@ elseif strcmp(opt.cca_mode, 'standard')
 end
 % Return found filters from dimension reduced space 
 Vf = Uf*Vfdr;
-Af = Cf*Vf;
+Af = Uf*Cff*Vfdr;
 
 % Project and normalize EEG/MEG filters
 for global_src_idx=1:size(Af,2)
-    [w, a, s] = project_to_manifold(Af(:,global_src_idx), Wm, Cx);
+    [w, a, s] = project_to_manifold(Af(:,global_src_idx), Wm, Cxx);
     
     % Project target variable to its CCA component 
     Zpr = Vz(:,global_src_idx)'*Z;
@@ -151,7 +151,6 @@ end
 function C = upper2cov(v)
 
 n = (-1 + sqrt(1 + 8 * numel(v))) / 2;
-assert(mod(n,1) == 0, 'Vector length does not correspond to a triangular matrix.');
 
 C = zeros(n);
 upper_mask = triu(true(n));
@@ -166,7 +165,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [VecCov, Wm, Cxx, Epochs_cov, Epochs_covW] = get_white_covariance_series(X_epochs, opt)
+function [F, Wm, Cxx, Epochs_cov, Epochs_covW] = get_white_covariance_series(X_epochs, opt)
 
 % Function to get upper triangular covarience time series in dimension
 % reduced space
@@ -189,13 +188,14 @@ Wm = eye(n_channels) / iWm;
 
 % Whightened covariance series (upper triangular parts)
 Epochs_covW = zeros(n_channels,n_channels,n_epochs);
-VecCov = zeros(n_features,n_epochs);
+F = zeros(n_features,n_epochs);
 for ep_idx = 1:n_epochs
     XcovW = Wm * Epochs_cov(:,:,ep_idx) * Wm';
     Epochs_covW(:,:,ep_idx) = XcovW;
-    VecCov(:, ep_idx) = cov2upper(XcovW);
+    F(:, ep_idx) = cov2upper(XcovW);
 end
 
+F = F - mean(F,2);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -248,7 +248,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [Vx, Vy, Sxx, Syy] = cca(X, Y, opt)
+function [Vx, Vy, Cxx, Cyy] = cca(X, Y, opt)
 
 % Regularized CCA
 
@@ -259,19 +259,19 @@ Y = Y - mean(Y,1);
 
 [n,~] = size(X);
 
-Sxx = (X' * X) / (n-1);
-Syy = (Y' * Y) / (n-1);
-Sxy = (X' * Y) / (n-1);
+Cxx = (X' * X) / (n-1);
+Cyy = (Y' * Y) / (n-1);
+Cxy = (X' * Y) / (n-1);
 
-scale_x = trace(Sxx) / size(Sxx,1);
-scale_y = trace(Syy) / size(Syy,1);
-Sxx_r = (1-gamma)*Sxx + gamma*scale_x*eye(size(Sxx));
-Syy_r = (1-gamma)*Syy + gamma*scale_y*eye(size(Syy));
+scale_x = trace(Cxx) / size(Cxx,1);
+scale_y = trace(Cyy) / size(Cyy,1);
+Sxx_r = (1-gamma)*Cxx + gamma*scale_x*eye(size(Cxx));
+Syy_r = (1-gamma)*Cyy + gamma*scale_y*eye(size(Cyy));
 
 Rx = chol(Sxx_r,'upper');
 Ry = chol(Syy_r,'upper');
 
-K = Rx' \ (Sxy / Ry);            
+K = Rx' \ (Cxy / Ry);            
 [Ux,~,Uy] = svd(K,'econ');
 
 Vx = Rx \ Ux; 
