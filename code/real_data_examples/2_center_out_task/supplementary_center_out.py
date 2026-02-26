@@ -6,15 +6,31 @@ Created on Wed Oct 22 17:07:11 2025
 """
 
 import mne
+import numpy as np
 
 # %%
-fpath = "data/Patient1_OFF_2-35Hz_pp4s_epochs.fif"
+fpath = "C:/Users/ansbel/Documents/2Git/TriCo/data/external/sub2_center_out_epochs.fif"
 
 # %%
 epochs = mne.read_epochs(fpath,preload=True)
 
 # %% 
 epochs.plot()
+
+# %%
+mask = (
+    (epochs.metadata['pp'] == 2) &
+    (epochs.metadata['correct_trials'] == 1)
+)
+
+idx = np.where(mask)[0]
+idx
+
+# %%
+epochs = epochs[idx]
+
+# %%
+epochs.save(fpath,overwrite=True)
 
 # %%
 

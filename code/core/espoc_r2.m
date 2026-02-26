@@ -1,4 +1,4 @@
-function [W, A, Vf, Vz, corrs, Feat, Epochs_cov, eigenvalues] = espoc(X_epochs, Z, varargin)
+function [W, A, Vf, corrs, Feat, Epochs_cov, eigenvalues] = espoc_r2(X_epochs, z, varargin)
 % Extended Source Power Co-modulation (eSPoC)
 %
 % This function implements the eSPoC framework for explaining variability
@@ -86,6 +86,8 @@ opt= set_defaults(opt, ...
                   'whitening_reg', 0.0001, ...
                   'cca_mode', 'standard', ...
                   'cca_reg', 0.1);
+ 
+assert(size(z,1) == 1, 'z must have only 1 dimension');
 
 % ---
 [Feat, Wm, Cx, Epochs_cov, ~] = get_white_covariance_series(X_epochs, opt);
@@ -93,32 +95,25 @@ Cf = cov(Feat');
 
 [Featdr, Uf] = project_to_pc(Feat, opt.X_min_var_explained);
 
-if strcmp(opt.cca_mode, 'regularized')
-    [Vfdr, Vz] = cca(Featdr', Z', opt);
-elseif strcmp(opt.cca_mode, 'standard') 
-    [Vfdr, Vz] = canoncorr(Featdr', Z');
-end
-% Return found filters from dimension reduced space 
-Vf = Uf*Vfdr;
+Vfdr = spoc(Featdr,z);
+
+Vf = Uf*Vfdr(:,1);
 Af = Cf*Vf;
 
 % Project and normalize EEG/MEG filters
 for global_src_idx=1:size(Af,2)
     [w, a, s] = project_to_manifold(Af(:,global_src_idx), Wm, Cx);
-    
-    % Project target variable to its CCA component 
-    Zpr = Vz(:,global_src_idx)'*Z;
-    
+        
     % Find correlation of the filters
     for local_src_idx=1:size(w,2)
         for ep_idx=1:size(Epochs_cov,3)
             Env(ep_idx) = w(:,local_src_idx)' * Epochs_cov(:,:,ep_idx) * w(:,local_src_idx);
         end
-        cr(local_src_idx)=corr(Env',Zpr');
+        cr(local_src_idx)=corr(Env',z');
     end
-    % [cr,idx] = sort(cr,'descend');
-    % w = w(:,idx);
-    % a = a(:,idx);
+    [cr,idx] = sort(cr,'descend');
+    w = w(:,idx);
+    a = a(:,idx);
     
     eigenvalues(global_src_idx,:) = s;
     corrs(global_src_idx,:) = cr;
@@ -248,34 +243,24 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [Vx, Vy, Sxx, Syy] = cca(X, Y, opt)
+function [V] = spoc(F, z)
+[D,E] = size(F);
 
-% Regularized CCA
+Sfz = zeros(D,1);
+Sff = zeros(D,D);
 
-gamma = opt.cca_reg;
+F = F - mean(F,2);
+z = (z - mean(z)) / std(z);
 
-X = X - mean(X,1);  
-Y = Y - mean(Y,1);
+for e = 1:E
+    Sfz = Sfz + F(:,e) * z(e);
+    Sff = Sff + F(:,e) * F(:,e)';
+end
 
-[n,~] = size(X);
+Sfz = Sfz / (E-1);
+Sff = Sff / (E-1);
 
-Sxx = (X' * X) / (n-1);
-Syy = (Y' * Y) / (n-1);
-Sxy = (X' * Y) / (n-1);
-
-scale_x = trace(Sxx) / size(Sxx,1);
-scale_y = trace(Syy) / size(Syy,1);
-Sxx_r = (1-gamma)*Sxx + gamma*scale_x*eye(size(Sxx));
-Syy_r = (1-gamma)*Syy + gamma*scale_y*eye(size(Syy));
-
-Rx = chol(Sxx_r,'upper');
-Ry = chol(Syy_r,'upper');
-
-K = Rx' \ (Sxy / Ry);            
-[Ux,~,Uy] = svd(K,'econ');
-
-Vx = Rx \ Ux; 
-Vy = Ry \ Uy; 
+[V,S] = eig(Sfz*Sfz', Sff); s=diag(S);[s,idxs]=sort(s,'descend');V=V(:,idxs);
 
 end
 

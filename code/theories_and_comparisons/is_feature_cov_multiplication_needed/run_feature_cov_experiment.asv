@@ -80,27 +80,23 @@ velocity_chs = 6:8;
 Z = squeeze(mean(Z_epochs(:,velocity_chs,:).^2, 1));
 Z = mean(Z,1);
 
-[We, Ae, Vf, Vz, corrs_espoc, Feat, Epochs_cov, eigenvalues] = espoc(X_epochs, Z);
-% [We, Ae, Vf, corrs_espoc, Feat, Epochs_cov, eigenvalues] = espoc_r2(X_epochs, Z);
+% [We, Ae, Vf, Vz, corrs_espoc, Feat, Epochs_cov, eigenvalues] = espoc(X_epochs, Z);
+[W, A, Vf, corrs, Feat, Epochs_cov, eigenvalues] = espoc_r2(X_epochs, Z);
 
 [Ws, As] = spoc(X_epochs, Z);
 Env = [];
-for local_src_idx=1:size(Ws,2)
+for local_src_idx=1:size(W,2)
     for ep_idx=1:size(Epochs_cov,3)
-        Env(ep_idx) = Ws(:,local_src_idx)' * Epochs_cov(:,:,ep_idx) * Ws(:,local_src_idx);
+        Env(ep_idx) = W(:,local_src_idx)' * Epochs_cov(:,:,ep_idx) * W(:,local_src_idx);
     end
     corrs_spoc(local_src_idx)=corr(Env',Z');
 end
 
-figure;stem(corrs_espoc'); hold on
+figure;stem(corrs'); hold on
 stem(corrs_spoc')
 
 %%
-% gl_src_idx = 2;
-lcl_src_idx = 2;
-
-% wx = We(gl_src_idx,:,lcl_src_idx)';
-% ax = Ae(gl_src_idx,:,lcl_src_idx)';
+lcl_src_idx = 1;
 
 wx = We(:,lcl_src_idx)';
 ax = Ae(:,lcl_src_idx)';

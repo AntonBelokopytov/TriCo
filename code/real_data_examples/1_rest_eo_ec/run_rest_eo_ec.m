@@ -46,7 +46,7 @@ cfg.colorbar     = 'yes';
 % =====================================================================
 
 % Alpha band filtering
-[b,a] = butter(5,[8,12]/(Fs/2)); 
+[b,a] = butter(3,[8,12]/(Fs/2)); 
 Xfilt = filtfilt(b,a,X)';
 
 % PCA via SVD
