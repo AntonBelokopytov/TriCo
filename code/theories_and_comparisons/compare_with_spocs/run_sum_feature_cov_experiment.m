@@ -46,7 +46,7 @@ Fs = 250;
 [X_s, X_bg, X_n, z, GA] = generate_low_distributed_sources(G, Nsrc, Ndistr,...
     flanker, Ts, Fs);
 
-SNR = 5;
+SNR = 10;
 X = SNR*X_s + X_bg + 0.1*trace(cov(X_s'))*X_n;
 
 [b,a] = butter(3,[8,12]/(Fs/2)); 
@@ -82,13 +82,14 @@ stem(corrs_spoc')
 legend('eSPoC','SPoC')
 
 %%
+idx = 38;
 % eSPoC — берём компонент с максимальной корреляцией
 [~, idx_e] = max(abs(corrs_espoc));
-a_e = A(:,1);
+a_e = A(:,idx);
 
 % SPoC — берём компонент с максимальной корреляцией
 [~, idx_s] = max(abs(corrs_spoc));
-a_s = As(:,1);
+a_s = As(:,idx);
 
 % Истинный паттерн
 a_true = GA(:,1);

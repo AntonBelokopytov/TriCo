@@ -271,7 +271,7 @@ function [W, A, s] = project_to_manifold(V, Wm, Cxx)
 % Project filters to manifold
 WW = upper2cov(V);
 
-[Uw,S] = eig(WW,Wm'*Cxx*Wm);s=diag(S);[s,idxs]=sort(s,'descend');Uw=Uw(:,idxs);
+[Uw,S] = eig(WW);s=diag(S);[s,idxs]=sort(s,'descend');Uw=Uw(:,idxs);
 % stem(s)
 % xlabel('number of component')
 % ylabel('\lambda value')

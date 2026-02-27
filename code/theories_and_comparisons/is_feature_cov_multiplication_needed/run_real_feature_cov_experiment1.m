@@ -107,26 +107,28 @@ size(Z_epochs)
 % =====================================================================
 
 % Select velocity channels
-velocity_chs = 6:8;
+velocity_chs = 1:11;
 
 % Compute squared velocity (power-like measure)
 Z = squeeze(mean(Z_epochs(:,velocity_chs,:).^2, 1));
 
 % Average across selected channels
-Z = mean(Z,1);
+Zm = mean(Z(6:8,:),1);
 
 %% =====================================================================
 % RUN eSPoC
 % =====================================================================
 
 [We, Ae, Vf, Vz, corrs_espoc, Feat, Epochs_cov, eigenvalues] = ...
-    espoc(X_epochs, Z);
+    espoc(X_epochs, Zm);
+% [We, Ae, Vf, corrs_espoc, Feat, Epochs_cov, eigenvalues] = ...
+%     espoc_r2(X_epochs, Zm);
 
 % =====================================================================
 % RUN classical SPoC for comparison
 % =====================================================================
 
-[Ws, As] = spoc(X_epochs, Z);
+[Ws, As] = spoc(X_epochs, Zm);
 
 Env = [];
 
@@ -137,27 +139,34 @@ for local_src_idx = 1:size(Ws,2)
                       Epochs_cov(:,:,ep_idx) * ...
                       Ws(:,local_src_idx);
     end
-    corrs_spoc(local_src_idx) = corr(Env',Z');
+    corrs_spoc(local_src_idx) = corr(Env',Zm');
 end
 
-% Compare correlations
+% % Compare correlations
 figure;
-stem(corrs_espoc'); hold on
+stem(corrs_espoc(1,:)'); hold on
 stem(corrs_spoc')
 legend('eSPoC','SPoC')
+
+%%
+figure;
+plot((Vz'*Z)')
+
+%%
+figure;
+plot(Vz(:,1)'*Z)
 
 %% =====================================================================
 % VISUALIZE FILTERS + PATTERNS (eSPoC vs SPoC)
 % =====================================================================
-
 espoc_src_idx = 1;   % индекс сравниваемого источника
 spoc_src_idx = 1;   % индекс сравниваемого источника
 
 % -------------------------
 % eSPoC
 % -------------------------
-w_e = We(:,espoc_src_idx);
-a_e = Ae(:,espoc_src_idx);
+w_e = squeeze(We(1,:,espoc_src_idx))';
+a_e = squeeze(Ae(1,:,espoc_src_idx))';
 
 % Fix sign for consistency
 [~, idx] = max(abs(w_e));

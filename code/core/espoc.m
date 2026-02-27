@@ -110,6 +110,7 @@ for global_src_idx=1:size(Af,2)
     Zpr = Vz(:,global_src_idx)'*Z;
     
     % Find correlation of the filters
+    Env = [];
     for local_src_idx=1:size(w,2)
         for ep_idx=1:size(Epochs_cov,3)
             Env(ep_idx) = w(:,local_src_idx)' * Epochs_cov(:,:,ep_idx) * w(:,local_src_idx);
@@ -285,8 +286,7 @@ function [W, A, s] = project_to_manifold(V, Wm, Cxx)
 
 % Project filters to manifold
 WW = upper2cov(V);
-
-[Uw,S] = eig(WW,Wm'*Cxx*Wm);s=diag(S);[s,idxs]=sort(s,'descend');Uw=Uw(:,idxs);
+[Uw,S] = eig(WW,Wm*Cxx*Wm');s=diag(S);[s,idxs]=sort(s,'descend');Uw=Uw(:,idxs);
 % stem(s)
 % xlabel('number of component')
 % ylabel('\lambda value')
