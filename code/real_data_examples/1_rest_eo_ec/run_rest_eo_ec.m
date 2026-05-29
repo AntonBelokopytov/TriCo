@@ -2,7 +2,7 @@ close all
 clear
 clc
 
-ft_path = 'C:\Users\ansbel\Documents\2Git\fieldtrip';
+ft_path = 'C:\Users\ansbel\Documents\GitHub\site-packages\fieldtrip';
 
 if ~exist('ft_defaults','file')
     addpath(ft_path);
@@ -44,7 +44,6 @@ cfg.colorbar     = 'yes';
 %% =====================================================================
 %  Band-pass filtering and PCA (dimensionality reduction)
 % =====================================================================
-
 % Alpha band filtering
 [b,a] = butter(3,[8,12]/(Fs/2)); 
 Xfilt = filtfilt(b,a,X)';
