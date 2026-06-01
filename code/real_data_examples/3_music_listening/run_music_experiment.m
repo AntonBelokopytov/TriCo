@@ -11,7 +11,7 @@ end
 ft_defaults;
 
 %%
-sub_path = 'sub1_music_epochs.fif';
+sub_path = 'Tumyalis_music_epochs.fif';
 
 cfg = [];
 cfg.dataset = sub_path;
@@ -172,7 +172,8 @@ legend({'component 1', 'component 2', 'component 3'})
 % =====================================================================
 
 % Run eSPoC
-[W, A, Vf, Vz, corrs, VecCov, Epochs_cov, eigenvalues] = espoc(X_epo, R');
+[W, A, Vf, Vz, corrs, ~, ~, Epochs_cov, VecCov] = espoc(X_epo, R');
+% [W, Vz, ~, A] = mspoc(X_epo, R');
 
 % Plot correlation values
 figure;
@@ -494,11 +495,13 @@ zlabel('Canonical axis 3')
 %%
 % Select global source and local component
 gl_src_idx  = 1;
-lcl_src_idx = 5;
+lcl_src_idx = 1;
 
 % Back-project spatial pattern and spatial filter to sensor space
 ax = U*A(gl_src_idx,:,lcl_src_idx)';
 wx = U*W(gl_src_idx,:,lcl_src_idx)';
+% ax = U*A(:,lcl_src_idx);
+% wx = U*W(:,lcl_src_idx);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

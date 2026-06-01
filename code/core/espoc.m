@@ -1,4 +1,4 @@
-function [W, A, Vf, Vz, corrs, eigenvalues, cca_corrs] = espoc(X_epochs, Z, varargin)
+function [W, A, Vf, Vz, corrs, eigenvalues, cca_corrs, Epochs_cov, Feat] = espoc(X_epochs, Z, varargin)
 % Extended Source Power Co-modulation (eSPoC)
 %
 % This function implements the eSPoC framework for explaining variability
@@ -42,7 +42,7 @@ opt = set_defaults(opt, ...
                   'X_min_var_explained', 1, ...
                   'whitening_reg', 0.00001, ...
                   'cca_mode', 'regularized', ...
-                  'cca_reg', 0.0001);
+                  'cca_reg', 0.00001);
 
 % 1. Извлечение признаков с использованием быстрых тензорных вычислений
 [Feat, Wm, Cxx, Epochs_cov] = get_white_covariance_series(X_epochs, opt);
@@ -131,7 +131,8 @@ Cxx = mean(Epochs_cov, 3);
 % Отбеливающая матрица
 Cxx_r = Cxx + opt.whitening_reg * eye(n_channels) * trace(Cxx) / n_channels;
 iWm = sqrtm(Cxx_r);    
-Wm = eye(n_channels) / iWm;
+% Wm = eye(n_channels) / iWm;
+Wm = eye(n_channels);
 % Вычисление отбеленных признаков
 F = zeros(n_features, n_epochs);
 try
@@ -152,8 +153,10 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [W, A, s] = project_to_manifold(V, Wm, Cxx)
+Cxx_r = Cxx + 0.00001 * eye(size(Cxx,1)) * trace(Cxx) / size(Cxx,1);
+
 WW = upper2cov(V);
-[Uw, S, ~] = eig(WW); [s,idx] = sort(diag(S),'descend'); Uw = Uw(:,idx);
+[Uw, S, ~] = eig(WW,Cxx_r); [s,idx] = sort(diag(S),'descend'); Uw = Uw(:,idx);
 n_local = size(Uw, 2);
 n_channels = size(Wm, 1);
 W = zeros(n_channels, n_local);
@@ -217,11 +220,11 @@ Cxx = (X' * X) / (n-1);
 Cyy = (Y' * Y) / (n-1);
 Cxy = (X' * Y) / (n-1);
 scale_x = trace(Cxx) / size(Cxx,1);
-scale_y = trace(Cyy) / size(Cyy,1);
+% scale_y = trace(Cyy) / size(Cyy,1);
 Sxx_r = (1-gamma)*Cxx + gamma*scale_x*eye(size(Cxx));
-Syy_r = (1-gamma)*Cyy + gamma*scale_y*eye(size(Cyy));
+% Syy_r = (1-gamma)*Cyy + gamma*scale_y*eye(size(Cyy));
 Rx = chol(Sxx_r, 'upper');
-Ry = chol(Syy_r, 'upper');
+Ry = chol(Cyy, 'upper');
 K = Rx' \ (Cxy / Ry);            
 [Ux, ~, Uy] = svd(K, 'econ');
 Vx = Rx \ Ux; 
