@@ -1,58 +1,38 @@
 function X_epo = epoch_data(X, Fs, Ws, Ss)
-% EPOCH_DATA  Segment continuous data into overlapping epochs.
-%
-%   X_epo = epoch_data(X, Fs, Ws, Ss)
-%
-%   INPUT:
-%       X   - continuous data matrix [T x D],
-%             where T = number of time samples,
-%                   D = number of channels (sensors)
-%
-%       Fs  - sampling frequency (Hz)
-%
-%       Ws  - epoch window length in seconds
-%
-%       Ss  - step (shift) between consecutive epochs in seconds
-%             (if Ss < Ws → overlapping epochs)
-%
-%   OUTPUT:
-%       X_epo - epoched data array [W x D x E],
-%               where W = samples per epoch,
-%                     D = number of channels,
-%                     E = number of epochs
-%
-%   The function creates sliding windows over time with
-%   fixed window length and fixed step.
+% EPOCH_DATA  Segment continuous data into overlapping epochs (Optimized).
 
-% Convert window length from seconds to samples
-W = fix(Ws * Fs);   % number of samples per epoch
+[T, D] = size(X);
 
-% Convert step size from seconds to samples
-S = fix(Ss * Fs);   % shift between epochs in samples
+% Переводим секунды в отсчеты
+W = fix(Ws * Fs);   % размер окна
+S = fix(Ss * Fs);   % шаг
 
-% Initial time index range for the first epoch
-range = 1:W;
-
-% Epoch counter
-ep = 1;
-
-% Preallocate empty array (will grow dynamically)
-X_epo = [];
-
-% Slide window over data until the last sample fits inside X
-while range(end) <= size(X,1)
-    
-    % Extract epoch: [W x D]
-    X_epo(:,:,ep) = X(range,:);
-    
-    % Shift window forward
-    range = range + S;
-    
-    % Increment epoch counter
-    ep = ep + 1;
+% Защита от слишком короткого сигнала
+if T < W
+    X_epo = [];
+    return;
 end
 
-% Remove singleton dimension if only one epoch
-X_epo = squeeze(X_epo);
+% 1. Математически вычисляем итоговое количество эпох (E)
+E = floor((T - W) / S) + 1;
+
+% 2. ПРЕДАЛЛОКАЦИЯ: сразу выделяем память под итоговый массив.
+% class(X) сохраняет тип данных (например, 'single'), экономя память для ЭЭГ.
+X_epo = zeros(W, D, E, class(X));
+
+% 3. Быстрый цикл for (MATLAB JIT-компилятор идеально его оптимизирует)
+for ep = 1:E
+    % Вычисляем начальный и конечный индексы напрямую
+    start_idx = (ep - 1) * S + 1;
+    end_idx = start_idx + W - 1;
+    
+    % Записываем данные в заранее подготовленную ячейку памяти
+    X_epo(:, :, ep) = X(start_idx:end_idx, :);
+end
+
+% Удаляем лишнее измерение, если эпоха всего одна
+if E == 1
+    X_epo = squeeze(X_epo);
+end
 
 end
