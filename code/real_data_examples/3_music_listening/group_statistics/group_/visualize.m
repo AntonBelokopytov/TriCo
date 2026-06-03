@@ -5,13 +5,13 @@ close all; clear; clc;
 
 % --- 1. НАСТРОЙКИ (ЧТО СМОТРИМ) ---
 % Выбери базовые пути (part1 или part2)
-data_dir       = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part1\eeg\';
-base_emb_dir   = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part1\embeddings\';
-base_stats_dir = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part1\stats\';
+data_dir       = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part2\eeg\';
+base_emb_dir   = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part2\embeddings\';
+base_stats_dir = 'C:\Users\ansbel\Documents\GitHub\TriCo\data\external\music_listening\part2\stats\';
 ft_path        = 'C:\Users\ansbel\Documents\GitHub\site-packages\fieldtrip';
 
 % Выбери файл и диапазон для визуализации
-base_name = '10_07_g1_2223';  % Впиши нужный ID
+base_name = 'TumAle';  % Впиши нужный ID
 freq_name = 'beta';           % Выбери: theta, alpha, beta, gamma
 
 % Условия эксперимента (скрипт сам возьмет первые nEpochs)
@@ -191,7 +191,7 @@ xtickangle(45); axis square;
 %% =====================================================================
 % РИСУНОК 7: ДЕТАЛЬНЫЙ АНАЛИЗ ОДНОЙ КОМПОНЕНТЫ (2x2)
 % =====================================================================
-gl_src_idx  = 2;
+gl_src_idx  = 1;
 lcl_src_idx = 1;
 
 if size(W_true, 1) >= gl_src_idx && size(W_true, 3) >= lcl_src_idx
