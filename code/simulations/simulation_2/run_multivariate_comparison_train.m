@@ -9,11 +9,11 @@ end
 ft_defaults;
 
 %% Загрузка данных
-elec = load("D:\OS(CURRENT)\data\simulation_support_data\eeg\elec.mat").elec;
+elec = load("C:\Users\anton\Documents\GitHub\TriCo\data\support\elec.mat").elec;
 laycfg = [];
 laycfg.elec = elec;
 lay = ft_prepare_layout(laycfg);     
-G = load('D:\OS(CURRENT)\data\simulation_support_data\eeg\MNE_EEG_FWD_TRPL.mat').MNE_EEG_FWD_TRPL;
+G = load('C:\Users\anton\Documents\GitHub\TriCo\data\support\MNE_EEG_FWD_TRPL.mat').MNE_EEG_FWD_TRPL;
 
 %% =================== ПАРАМЕТРЫ СИМУЛЯЦИИ ===================
 Nsrc = 101;     
@@ -34,7 +34,7 @@ Ts = 850;
 Fs = 250;
 Ws = 1;
 Ss = 1;
-nMC = 100;
+nMC = 500;
 
 % Фиксируем SNR как в статье
 SNR_fixed = 10^(0.4); 
@@ -49,6 +49,16 @@ nMethods = length(labels);
 filcorr_test = zeros(nMC, nSteps, nMethods, Ndistr); 
 patcorr      = zeros(nMC, nSteps, nMethods, Ndistr); 
 zcorr_test   = zeros(nMC, nSteps, nMethods, Ndistr); 
+
+%% ================= ИНИЦИАЛИЗАЦИЯ ПОТОКОВОГО ПУЛА =================
+% Проверяем текущий пул. Если он не потоковый, удаляем и создаем нужный на 4 потока.
+poolobj = gcp('nocreate');
+if isempty(poolobj) || ~isa(poolobj, 'parallel.ThreadPool')
+    if ~isempty(poolobj)
+        delete(poolobj);
+    end
+    parpool('Threads', 4);
+end
 
 for mc_idx = 1:nMC
     fprintf('Monte-Carlo iteration: %d / %d\n', mc_idx, nMC);
@@ -80,7 +90,7 @@ for mc_idx = 1:nMC
     X = SNR_fixed * X_s + X_bg + 0.1 * X_n / norm(X_s,'fro');
     X_epo = epoch_data(X', Fs, Ws, Ss);
     
-    % Предрасчет ковариационных матриц для всех эпох (Грандиозное ускорение)
+    % Предрасчет ковариационных матриц для всех эпох
     nTotalEpochs = size(X_epo, 3);
     nChan = size(X_epo, 2);
     Covs_all = zeros(nChan, nChan, nTotalEpochs);
@@ -96,7 +106,7 @@ for mc_idx = 1:nMC
     z_corr_local = zeros(nSteps, nMethods, Ndistr);
     
     % 2. Перебираем РАЗМЕР ОБУЧАЮЩЕЙ ВЫБОРКИ
-    parfor step_idx = 1:nSteps
+    parfor (step_idx = 1:nSteps, 4)
         nTrain = train_epochs_range(step_idx);
         
         % Вырезаем обучающую часть нужного размера
@@ -116,7 +126,6 @@ for mc_idx = 1:nMC
         vz_all = zeros(Nmix, Nextract, nMethods); 
         
         % 1. eSPoC
-        % ИСПРАВЛЕНИЕ: добавлена точка с запятой, чтобы избежать вывода в консоль
         [W_e, A_e, ~, Vz, corrs_e] = espoc(X_epo_train, z_multidim_train); 
         
         n_ext_e = min(Nextract, size(W_e, 1));
@@ -190,12 +199,14 @@ end
 %% ================= Вычисление статистики =================
 mean_f = reshape(mean(filcorr_test, 1), [nSteps, nMethods, Ndistr]);
 ci_f   = reshape(1.96 * std(filcorr_test, 0, 1) / sqrt(nMC), [nSteps, nMethods, Ndistr]);
+
 mean_p = reshape(mean(patcorr, 1), [nSteps, nMethods, Ndistr]);
 ci_p   = reshape(1.96 * std(patcorr, 0, 1) / sqrt(nMC), [nSteps, nMethods, Ndistr]);
+
 mean_z = reshape(mean(zcorr_test, 1), [nSteps, nMethods, Ndistr]);
 ci_z   = reshape(1.96 * std(zcorr_test, 0, 1) / sqrt(nMC), [nSteps, nMethods, Ndistr]);
 
-% ================= Визуализация (Динамическая сетка) =================
+%% ================= Визуализация (Динамическая сетка) =================
 x = train_epochs_range; 
 figure('Position', [100 100 1600 350*Ndistr], 'Color', 'w'); 
 colors = [0.8 0 0;    % Красный для eSPoC
@@ -208,10 +219,9 @@ for src_i = 1:Ndistr
     for m = 1:nMethods
         y = mean_f(:, m, src_i)'; ci = ci_f(:, m, src_i)';
         fill([x fliplr(x)], [y-ci fliplr(y+ci)], colors(m,:), 'FaceAlpha', 0.15, 'EdgeColor', 'none', 'HandleVisibility', 'off');   
-        % Используем plot (линейный масштаб) вместо semilogx
         plot(x, y, ['-', markers{m}], 'Color', colors(m,:), 'LineWidth', 2, 'MarkerSize', 5, 'MarkerFaceColor', 'w', 'DisplayName', labels{m});
     end
-    title(sprintf('Src %d: Power Correlation (Test)', src_i), 'FontSize', 12, 'FontWeight', 'bold');
+    title(sprintf('Src %d: Power Correlation', src_i), 'FontSize', 12, 'FontWeight', 'bold');
     ylabel('Correlation, r', 'FontSize', 11);
     ylim([0 1.05]); xlim([min(x) max(x)]);
     set(gca, 'GridAlpha', 0.3, 'MinorGridAlpha', 0.4, 'TickDir', 'out'); grid on;
@@ -246,3 +256,9 @@ for src_i = 1:Ndistr
         subplot(Ndistr, 3, (src_i-1)*3 + 3); xlabel('Number of training epochs', 'FontSize', 11);
     end
 end
+
+%% ================= Сохранение итоговой картинки =================
+drawnow;
+savefig(gcf, 'mspoc_vs_espoc_multi_train.fig');
+exportgraphics(gcf, 'mspoc_vs_espoc_multi_train.jpg', 'Resolution', 300);
+fprintf('Saved figures: mspoc_vs_espoc_multi_train.fig and mspoc_vs_espoc_multi_train.jpg\n');

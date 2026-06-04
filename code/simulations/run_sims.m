@@ -1,0 +1,5 @@
+run simulation_1\run_spoc_comparison_snr.m
+run simulation_1\run_spoc_comparison_train.m
+
+run simulation_2\run_multivariate_comparison_snr.m
+run simulation_2\run_multivariate_comparison_train.m
