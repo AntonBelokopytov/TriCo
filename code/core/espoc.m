@@ -131,8 +131,7 @@ Cxx = mean(Epochs_cov, 3);
 % Отбеливающая матрица
 Cxx_r = Cxx + opt.whitening_reg * eye(n_channels) * trace(Cxx) / n_channels;
 iWm = sqrtm(Cxx_r);    
-% Wm = eye(n_channels) / iWm;
-Wm = eye(n_channels);
+Wm = eye(n_channels) / iWm;
 % Вычисление отбеленных признаков
 F = zeros(n_features, n_epochs);
 try
@@ -153,10 +152,10 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [W, A, s] = project_to_manifold(V, Wm, Cxx)
-Cxx_r = Cxx + 0.00001 * eye(size(Cxx,1)) * trace(Cxx) / size(Cxx,1);
+% Cxx_r = Cxx + 0.00001 * eye(size(Cxx,1)) * trace(Cxx) / size(Cxx,1);
 
 WW = upper2cov(V);
-[Uw, S, ~] = eig(WW,Cxx_r); [s,idx] = sort(diag(S),'descend'); Uw = Uw(:,idx);
+[Uw, S, ~] = eig(WW); [s,idx] = sort(diag(S),'descend'); Uw = Uw(:,idx);
 n_local = size(Uw, 2);
 n_channels = size(Wm, 1);
 W = zeros(n_channels, n_local);

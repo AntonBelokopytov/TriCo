@@ -14,7 +14,7 @@ ft_defaults;
 % LOAD DATA
 % =====================================================================
 % sub_path = 'D:\OS(CURRENT)\data\parkinson\pathology\Patient_1_CenterOut_OFF_EEG_clean_epochs.fif';
-sub_path = 'D:\OS(CURRENT)\data\parkinson\control\Control_7_CenterOut_epochs.fif';
+sub_path = 'E:\OS(CURRENT)\data\parkinson\control\Control_7_CenterOut_epochs.fif';
 
 cfg = [];
 cfg.dataset = sub_path;
@@ -131,7 +131,7 @@ end
 stem(corrs_sp)
 
 %%
-comp_idx = 1;
+comp_idx = 38;
 
 wx = W(:,comp_idx);
 ax = A(:,comp_idx);

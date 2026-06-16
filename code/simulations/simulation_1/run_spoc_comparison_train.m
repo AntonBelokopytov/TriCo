@@ -9,11 +9,13 @@ end
 ft_defaults;
 
 %% Загрузка данных
-elec = load("C:\Users\anton\Documents\GitHub\TriCo\data\support\elec.mat").elec;
+FM = load('forward_model.mat');
+G = FM.leadfield;
+elec = FM.elec;
+
 laycfg = [];
 laycfg.elec = elec;
 lay = ft_prepare_layout(laycfg);     
-G = load('C:\Users\anton\Documents\GitHub\TriCo\data\support\MNE_EEG_FWD_TRPL.mat').MNE_EEG_FWD_TRPL;
 
 %% =================== ПАРАМЕТРЫ СИМУЛЯЦИИ ===================
 Nsrc = 101;     
@@ -65,7 +67,8 @@ for mc_idx = 1:nMC
     
     % Смешиваем с фиксированным SNR
     X = SNR_fixed*X_s + X_bg + gamma * X_n / norm(X_s,'fro');
-    
+    X = X - mean(X,1);
+
     X_epo = epoch_data(X', Fs, Ws, Ss);        
     z_epo_raw = epoch_data(z(1,:)', Fs, Ws, Ss); 
     z_epo = squeeze(mean(z_epo_raw, 1));         

@@ -9,11 +9,13 @@ end
 ft_defaults;
 
 %% Загрузка данных
-elec = load("C:\Users\anton\Documents\GitHub\TriCo\data\support\elec.mat").elec;
+FM = load('forward_model.mat');
+G = FM.leadfield;
+elec = FM.elec;
+
 laycfg = [];
 laycfg.elec = elec;
 lay = ft_prepare_layout(laycfg);     
-G = load('C:\Users\anton\Documents\GitHub\TriCo\data\support\MNE_EEG_FWD_TRPL.mat').MNE_EEG_FWD_TRPL;
 
 %% =================== ПАРАМЕТРЫ СИМУЛЯЦИИ ===================
 Nsrc = 101;     % 1 целевой + 100 фоновых
@@ -58,11 +60,13 @@ for mc_idx = 1:nMC
     filcorr_test_local  = zeros(nSNR, nMethods);
     patcorr_local       = zeros(nSNR, nMethods);
     
-    parfor (snr_idx = 1:nSNR, 4)
+    % parfor (snr_idx = 1:nSNR, 4)
+    for snr_idx = 1:nSNR
         % ================= Data generation =================
         current_SNR = SNR_range(snr_idx);
         X = current_SNR*X_s + X_bg + gamma * X_n / norm(X_s,'fro');
-        
+        X = X - mean(X,1);
+
         X_epo = epoch_data(X', Fs, Ws, Ss);        
         z_epo_raw = epoch_data(z(1,:)', Fs, Ws, Ss); 
         z_epo = squeeze(mean(z_epo_raw, 1));         
@@ -100,7 +104,7 @@ for mc_idx = 1:nMC
         for m_idx = 1:nMethods
             alg = methods{m_idx};
             
-            [W, A] = alg(X_epo_train, z_epo_train);
+            [W, A] = alg(X_epo_train, z_epo_train');
             w = W(:,1);
             
             env_train = zeros(nTrain, 1);

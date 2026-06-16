@@ -172,7 +172,9 @@ legend({'component 1', 'component 2', 'component 3'})
 % =====================================================================
 
 % Run eSPoC
-[W, A, Vf, Vz, corrs, ~, ~, Epochs_cov, VecCov] = espoc(X_epo, R');
+% [W, A, Vf, Vz, corrs, ~, ~, Epochs_cov, VecCov] = espoc(X_epo, R');
+% [W, A, Vf, Vz, corrs, ~, ~, Epochs_cov, VecCov] = espoc(X_epo, R');
+[W, Vz, ~, A] = my_mspoc(X_epo, R');
 % [W, Vz, ~, A] = mspoc(X_epo, R');
 
 % Plot correlation values
@@ -399,7 +401,7 @@ yline(min_val)
 % =====================================================================
 x = Vz(:,1)'*Rmean';
 y = Vz(:,2)'*Rmean';
-z = Vz(:,3)'*Rmean';
+z = Vz(:,5)'*Rmean';
 
 % x = Rmean(:,1);
 % y = Rmean(:,2);
@@ -495,13 +497,13 @@ zlabel('Canonical axis 3')
 %%
 % Select global source and local component
 gl_src_idx  = 1;
-lcl_src_idx = 1;
+lcl_src_idx = 6;
 
 % Back-project spatial pattern and spatial filter to sensor space
-ax = U*A(gl_src_idx,:,lcl_src_idx)';
-wx = U*W(gl_src_idx,:,lcl_src_idx)';
-% ax = U*A(:,lcl_src_idx);
-% wx = U*W(:,lcl_src_idx);
+% ax = U*A(gl_src_idx,:,lcl_src_idx)';
+% wx = U*W(gl_src_idx,:,lcl_src_idx)';
+ax = U*A(:,lcl_src_idx);
+wx = U*W(:,lcl_src_idx);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -521,8 +523,8 @@ set(gcf,'Color','w');
 t = tiledlayout(2,2,'TileSpacing','compact','Padding','compact');
 
 % Display correlation value in title
-sgtitle(['Source Envelope - UMAP correlation: ', ...
-         num2str(corrs(gl_src_idx,lcl_src_idx))])
+% sgtitle(['Source Envelope - UMAP correlation: ', ...
+%          num2str(corrs(gl_src_idx,lcl_src_idx))])
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

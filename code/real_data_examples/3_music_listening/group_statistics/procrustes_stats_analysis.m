@@ -350,3 +350,53 @@ axis equal; % КРИТИЧЕСКИ ВАЖНО: чтобы оси были в о�
 % Легкие линии макро-связей
 plot3(Grand_Mean_Centroids(idx_metro,1), Grand_Mean_Centroids(idx_metro,2), Grand_Mean_Centroids(idx_metro,3), 'Color', [0.9 0.2 0.2 0.3], 'LineWidth', 2);
 plot3(Grand_Mean_Centroids(idx_music,1), Grand_Mean_Centroids(idx_music,2), Grand_Mean_Centroids(idx_music,3), 'Color', [0.2 0.6 0.9 0.3], 'LineWidth', 2);
+
+%% --- ФИГУРА 9: 2D ПОЛЯРНАЯ ПРОЕКЦИЯ (POLAR MANIFOLD PROJECTION) ---
+disp('>>> ШАГ 6: ПОСТРОЕНИЕ 2D ПОЛЯРНОГО ЛАНДШАФТА <<<');
+
+% 1. Вычисляем Радиус (Истинное 3D-расстояние от глобального нуля)
+% Глобальный нуль (0,0,0) - это усредненный мозг за весь эксперимент
+radii = sqrt(sum(Grand_Mean_Centroids.^2, 2));
+
+% 2. Чтобы углы имели топологический смысл, находим оптимальную 2D-плоскость
+% PCA поворачивает 3D-облако так, чтобы максимизировать разброс по экрану
+[~, score] = pca(Grand_Mean_Centroids);
+x_2d = score(:,1);
+y_2d = score(:,2);
+
+% 3. Вычисляем полярный угол (от -pi до pi)
+angles = atan2(y_2d, x_2d);
+
+figure('Name', 'Fig 9: 2D Polar Topology', 'Color', 'w', 'Position', [500, 50, 900, 900]);
+pax = polaraxes; hold on;
+pax.ThetaZeroLocation = 'top';    % 0 градусов сверху
+pax.ThetaDir = 'clockwise';       % Углы по часовой стрелке
+pax.GridAlpha = 0.2;
+pax.LineWidth = 1.2;
+
+% Отрисовка "Спипиц" (Стрелок от центра к состояниям)
+for c = 1:N_common
+    polarplot([0 angles(c)], [0 radii(c)], 'Color', [colors(c,:) 0.4], 'LineWidth', 2);
+end
+
+% Отрисовка самих состояний
+for c = 1:N_common
+    polarscatter(angles(c), radii(c), 400, colors(c,:), 'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5, 'MarkerFaceAlpha', 0.9);
+    
+    % Умное выравнивание подписей, чтобы текст не наслаивался на точки
+    align_h = 'left'; if angles(c) < 0, align_h = 'right'; end
+    text(angles(c), radii(c) + 0.03, [' ', target_conditions{c}, ' '], ...
+        'FontSize', 12, 'FontWeight', 'bold', 'HorizontalAlignment', align_h, 'Color', [0.2 0.2 0.2]);
+end
+
+% Соединяем группы линией (чтобы показать их кучность)
+% Рисуем многоугольник Метронома
+ang_metro = angles(idx_metro); rad_metro = radii(idx_metro);
+polarplot([ang_metro; ang_metro(1)], [rad_metro; rad_metro(1)], 'Color', [0.9 0.2 0.2 0.6], 'LineWidth', 3);
+
+% Рисуем многоугольник Музыки
+ang_music = angles(idx_music); rad_music = radii(idx_music);
+polarplot([ang_music; ang_music(1)], [rad_music; rad_music(1)], 'Color', [0.2 0.6 0.9 0.6], 'LineWidth', 3);
+
+title('Figure 9: Polar Projection of Cognitive States', 'FontSize', 16, 'FontWeight', 'bold');
+subtitle({'Radius = Deviation from global neutral state', 'Angle = Topological nature of the state (PCA projected)'}, 'FontSize', 12);
