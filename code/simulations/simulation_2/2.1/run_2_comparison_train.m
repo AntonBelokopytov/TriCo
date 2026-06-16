@@ -9,18 +9,16 @@ end
 ft_defaults;
 
 %% Загрузка данных
-FM = load('forward_model.mat');
-G = FM.leadfield;
-elec = FM.elec;
-
+elec = load("C:\Users\anton\Documents\GitHub\TriCo\data\support\elec.mat").elec;
 laycfg = [];
 laycfg.elec = elec;
 lay = ft_prepare_layout(laycfg);     
+G = load('C:\Users\anton\Documents\GitHub\TriCo\data\support\MNE_EEG_FWD_TRPL.mat').MNE_EEG_FWD_TRPL;
 
 %% =================== ПАРАМЕТРЫ СИМУЛЯЦИИ ===================
 Nsrc = 101;     
-Ndistr = 2;        % Истинное количество целевых нейрональных источников
-Nmix = Ndistr;     % Размерность внешней (поведенческой) переменной
+Ndistr = 3;        % Истинное количество целевых нейрональных источников
+Nmix = Ndistr;          % Размерность внешней (поведенческой) переменной
 Nextract = Ndistr; % Сколько компонент (источников) алгоритмы будут пытаться извлечь
 
 if Nmix < Ndistr
@@ -90,8 +88,6 @@ for mc_idx = 1:nMC
     
     % ================= ГЕНЕРАЦИЯ ЭЭГ (Фиксированный SNR) =================
     X = SNR_fixed * X_s + X_bg + 0.1 * X_n / norm(X_s,'fro');
-    X = X - mean(X,1);
-
     X_epo = epoch_data(X', Fs, Ws, Ss);
     
     % Предрасчет ковариационных матриц для всех эпох
