@@ -1,4 +1,4 @@
-function [W, A, Vf, Vz, corrs, eigenvalues] = espoc_def(X_epochs, Z, varargin)
+function [W, A, Vz] = espoc_def(X_epochs, Z, varargin)
 % Deflationary Extended Source Power Co-modulation (eSPoC)
 %
 % INPUT:
@@ -22,7 +22,7 @@ function [W, A, Vf, Vz, corrs, eigenvalues] = espoc_def(X_epochs, Z, varargin)
 
 opt = propertylist2struct(varargin{:});
 opt = set_defaults(opt, ...
-                  'n_components', 1, ...
+                  'n_components', 5, ...
                   'X_min_var_explained', 1, ...
                   'whitening_reg', 0.00001, ...
                   'cca_mode', 'regularized', ...
@@ -30,36 +30,29 @@ opt = set_defaults(opt, ...
 
 [~, n_channels, n_epochs] = size(X_epochs);
 
-% 1. Инициализация ковариационных матриц по всем эпохам
 Epochs_cov = zeros(n_channels, n_channels, n_epochs);
 for ep_idx = 1:n_epochs
     Epochs_cov(:,:,ep_idx) = cov(X_epochs(:,:,ep_idx));
 end
 Cxx_orig = mean(Epochs_cov, 3);
 
-% 2. Глобальное отбеливание (как в spoc_r2)
 Cxx_r = Cxx_orig + opt.whitening_reg * eye(n_channels) * trace(Cxx_orig) / n_channels;
-M = eye(n_channels) / sqrtm(Cxx_r); % Матрица отбеливания
+M = eye(n_channels) / sqrtm(Cxx_r); 
 
 Cxxe_white = zeros(n_channels, n_channels, n_epochs);
 for ep_idx = 1:n_epochs
     Cxxe_white(:,:,ep_idx) = M * Epochs_cov(:,:,ep_idx) * M';
 end
 
-% Рабочие переменные для итеративной дефляции
 n_curr_channels = n_channels;
 Cxxe_curr = Cxxe_white;
-W_white = []; % Аккумулятор фильтров в глобальном отбеленном пространстве
+W_white = []; 
 
 corrs = zeros(opt.n_components, 1);
-eigenvalues = zeros(opt.n_components, 1);
-Vf = cell(opt.n_components, 1);
-Vz = cell(opt.n_components, 1);
+Vz = zeros(size(Z,1), opt.n_components);
 
 for comp_idx = 1:opt.n_components
     
-    % Так как Cxxe_curr уже отбелена (или спроецирована в нуль-пространство),
-    % мы сразу извлекаем признаки (верхнетреугольную часть)
     n_features = (n_curr_channels^2 - n_curr_channels)/2 + n_curr_channels;
     F = zeros(n_features, n_epochs);
     for ep_idx = 1:n_epochs
@@ -67,33 +60,42 @@ for comp_idx = 1:opt.n_components
     end
     F = F - mean(F,2);
     
-    % PCA для снижения размерности признаков
     [Featdr, Uf] = project_to_pc(F, opt.X_min_var_explained);
-    
+    Cff = cov(Featdr');
+
     % Canonical Correlation Analysis
     if strcmp(opt.cca_mode, 'regularized')
         [Vfdr, Vz_curr] = cca(Featdr', Z', opt);
     elseif strcmp(opt.cca_mode, 'standard') 
         [Vfdr, Vz_curr] = canoncorr(Featdr', Z');
     end
+    Vz(:,comp_idx) = Vz_curr(:,1);
+
+    Vf_full = Uf * Cff * Vfdr;
+    % Vf_full = Uf * Vfdr;
+    Af = Vf_full(:,1);
     
-    % Возврат в пространство признаков
-    Vf_full = Uf * Vfdr;
-    Af = Vf_full(:, 1); % Глобальная мода
-    
-    % Перевод из векторной формы в матричную
     WW = upper2cov(Af);
     
-    % SVD: выделяем локальный фильтр с наибольшим абсолютным собственным значением
-    [Uw, S, ~] = svd(WW);
-    w_sub = Uw(:,1); 
-    eigenvalues(comp_idx) = S(1,1);
+    [Uw, ~, ~] = svd(WW);
     
-    % Сохраняем канонические вектора
-    Vf{comp_idx} = Vf_full;
-    Vz{comp_idx} = Vz_curr;
-    
-    % Проекция фильтра в глобальное отбеленное пространство
+    w_corrs = [];
+    for w_i=1:size(Uw,2)
+        if comp_idx == 1
+            w_curr = Uw(:,w_i);
+        else
+            w_curr = B_accum * Uw(:,w_i);
+        end
+        Zpr = Vz_curr(:,1)' * Z;
+        Env = zeros(1, n_epochs);
+        for ep_idx = 1:n_epochs
+            Env(ep_idx) = w_curr' * Epochs_cov(:,:,ep_idx) * w_curr;
+        end
+        w_corrs(w_i) = corr(Env', Zpr');
+    end
+    [~, idxs] = sort(abs(w_corrs),'descend');
+
+    w_sub = Uw(:,idxs(1));
     if comp_idx == 1
         w_white = w_sub;
         W_white = w_white;
@@ -102,12 +104,10 @@ for comp_idx = 1:opt.n_components
         W_white = [W_white, w_white];
     end
     
-    % ДЕФЛЯЦИЯ: Подготовка данных для поиска следующего компонента
+    % ДЕФЛЯЦИЯ
     if comp_idx < opt.n_components
-        % Ищем нуль-пространство всех найденных фильтров в ОТБЕЛЕННЫХ координатах
         B_accum = null(W_white'); 
         
-        % Проецируем отбеленные эпохи в найденное подпространство
         n_sub_channels = size(B_accum, 2);
         Cxxe_next = zeros(n_sub_channels, n_sub_channels, n_epochs);
         for ep_idx = 1:n_epochs
@@ -125,32 +125,7 @@ A = zeros(n_channels, opt.n_components);
 % Нормализация фильтров (к единичной дисперсии) и вычисление паттернов
 for k = 1:opt.n_components
     W(:, k) = W(:, k) / sqrt(W(:, k)' * Cxx_orig * W(:, k));
-    A(:, k) = Cxx_orig * W(:, k); % Так как дисперсия равна 1, формула упрощается
-end
-
-% 4. Оценка корреляции и СОРТИРОВКА
-for k = 1:opt.n_components
-    Zpr = Vz{k}(:,1)' * Z;
-    Env = zeros(1, n_epochs);
-    for ep_idx = 1:n_epochs
-        Env(ep_idx) = W(:, k)' * Epochs_cov(:,:,ep_idx) * W(:, k);
-    end
-    corrs(k) = corr(Env', Zpr');
-end
-
-% Сортируем все результаты по убыванию модуля корреляции
-[corrs_sorted, sort_idx] = sort(corrs, 'descend');
-corrs = corrs(sort_idx); % Сохраняем исходные знаки, но сортируем по модулю
-W = W(:, sort_idx);
-A = A(:, sort_idx);
-eigenvalues = eigenvalues(sort_idx);
-Vf = Vf(sort_idx);
-Vz = Vz(sort_idx);
-
-% Распаковка ячеек, если искали только 1 компонент
-if opt.n_components == 1
-    Vf = Vf{1};
-    Vz = Vz{1};
+    A(:, k) = Cxx_orig * W(:, k); 
 end
 
 end
