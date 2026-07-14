@@ -1,0 +1,19 @@
+function [Vx, Vy, Cxx, Cyy] = cca(X, Y, opt)
+gamma = opt.cca_reg;
+X = X - mean(X,1);
+Y = Y - mean(Y,1);
+[n, ~] = size(X);
+Cxx = (X' * X) / (n-1);
+Cyy = (Y' * Y) / (n-1);
+Cxy = (X' * Y) / (n-1);
+scale_x = trace(Cxx) / size(Cxx,1);
+scale_y = trace(Cyy) / size(Cyy,1);
+Sxx_r = (1-gamma)*Cxx + gamma*scale_x*eye(size(Cxx));
+Syy_r = (1-gamma)*Cyy + gamma*scale_y*eye(size(Cyy));
+Rx = chol(Sxx_r, 'upper');
+Ry = chol(Syy_r, 'upper'); % Changed Syy_r instead of Cyy to be consistent and avoid chol failure on singular Cyy
+K = Rx' \ (Cxy / Ry);
+[Ux, ~, Uy] = svd(K, 'econ');
+Vx = Rx \ Ux;
+Vy = Ry \ Uy;
+end
