@@ -28,20 +28,30 @@ opt = set_defaults(opt, ...
                   'cca_mode', 'regularized', ...
                   'cca_reg', 0.0001);
 
-[~, n_channels, n_epochs] = size(X_epochs);
+[n_samples, n_channels, n_epochs] = size(X_epochs);
 
-Epochs_cov = zeros(n_channels, n_channels, n_epochs);
-for ep_idx = 1:n_epochs
-    Epochs_cov(:,:,ep_idx) = cov(X_epochs(:,:,ep_idx));
+if exist('pagemtimes', 'builtin') || exist('pagemtimes', 'file')
+    X_mean = mean(X_epochs, 1);
+    X_cen = X_epochs - X_mean;
+    Epochs_cov = pagemtimes(X_cen, 'transpose', X_cen, 'none') / (n_samples - 1);
+else
+    Epochs_cov = zeros(n_channels, n_channels, n_epochs);
+    for ep_idx = 1:n_epochs
+        Epochs_cov(:,:,ep_idx) = cov(X_epochs(:,:,ep_idx));
+    end
 end
 Cxx_orig = mean(Epochs_cov, 3);
 
 Cxx_r = Cxx_orig + opt.whitening_reg * eye(n_channels) * trace(Cxx_orig) / n_channels;
 M = eye(n_channels) / sqrtm(Cxx_r); 
 
-Cxxe_white = zeros(n_channels, n_channels, n_epochs);
-for ep_idx = 1:n_epochs
-    Cxxe_white(:,:,ep_idx) = M * Epochs_cov(:,:,ep_idx) * M';
+if exist('pagemtimes', 'builtin') || exist('pagemtimes', 'file')
+    Cxxe_white = pagemtimes(M, pagemtimes(Epochs_cov, M'));
+else
+    Cxxe_white = zeros(n_channels, n_channels, n_epochs);
+    for ep_idx = 1:n_epochs
+        Cxxe_white(:,:,ep_idx) = M * Epochs_cov(:,:,ep_idx) * M';
+    end
 end
 
 n_curr_channels = n_channels;
@@ -54,10 +64,32 @@ Vz = zeros(size(Z,1), opt.n_components);
 for comp_idx = 1:opt.n_components
     
     n_features = (n_curr_channels^2 - n_curr_channels)/2 + n_curr_channels;
-    F = zeros(n_features, n_epochs);
-    for ep_idx = 1:n_epochs
-        F(:, ep_idx) = cov2upper(Cxxe_curr(:,:,ep_idx));
+
+    % Векторизованное извлечение признаков (без цикла по эпохам)
+    upper_mask = triu(true(n_curr_channels));
+    upper_triu_mask = triu(true(n_curr_channels), 1);
+
+    Cxxe_curr_mod = Cxxe_curr;
+    % Умножаем внедиагональные элементы на sqrt(2) сразу для всех эпох
+    % Поскольку upper_triu_mask двумерная, мы применяем ее к каждому срезу
+    if exist('pagemtimes', 'builtin') || exist('pagemtimes', 'file')
+         % Быстрый способ умножить нужные элементы
+         diag_mask = eye(n_curr_channels);
+         sqrt2_mask = diag_mask + (~diag_mask) * sqrt(2);
+         Cxxe_curr_mod = Cxxe_curr_mod .* sqrt2_mask;
+    else
+         for ep_idx = 1:n_epochs
+             tmp = Cxxe_curr_mod(:,:,ep_idx);
+             tmp(upper_triu_mask) = tmp(upper_triu_mask) * sqrt(2);
+             Cxxe_curr_mod(:,:,ep_idx) = tmp;
+         end
     end
+
+    % Извлекаем элементы для всех эпох
+    % Преобразуем 3D тензор в 2D матрицу признаков
+    Cxxe_curr_reshaped = reshape(Cxxe_curr_mod, n_curr_channels^2, n_epochs);
+    upper_mask_1d = upper_mask(:);
+    F = Cxxe_curr_reshaped(upper_mask_1d, :);
     F = F - mean(F,2);
     
     [Featdr, Uf] = project_to_pc(F, opt.X_min_var_explained);
@@ -87,9 +119,14 @@ for comp_idx = 1:opt.n_components
             w_curr = B_accum * Uw(:,w_i);
         end
         Zpr = Vz_curr(:,1)' * Z;
-        Env = zeros(1, n_epochs);
-        for ep_idx = 1:n_epochs
-            Env(ep_idx) = w_curr' * Epochs_cov(:,:,ep_idx) * w_curr;
+        if exist('pagemtimes', 'builtin') || exist('pagemtimes', 'file')
+            Cov_w_curr = pagemtimes(Epochs_cov, w_curr);
+            Env = squeeze(sum(w_curr .* Cov_w_curr, 1))';
+        else
+            Env = zeros(1, n_epochs);
+            for ep_idx = 1:n_epochs
+                Env(ep_idx) = w_curr' * Epochs_cov(:,:,ep_idx) * w_curr;
+            end
         end
         w_corrs(w_i) = corr(Env', Zpr');
     end
@@ -109,9 +146,13 @@ for comp_idx = 1:opt.n_components
         B_accum = null(W_white'); 
         
         n_sub_channels = size(B_accum, 2);
-        Cxxe_next = zeros(n_sub_channels, n_sub_channels, n_epochs);
-        for ep_idx = 1:n_epochs
-            Cxxe_next(:,:,ep_idx) = B_accum' * Cxxe_white(:,:,ep_idx) * B_accum;
+        if exist('pagemtimes', 'builtin') || exist('pagemtimes', 'file')
+            Cxxe_next = pagemtimes(B_accum', pagemtimes(Cxxe_white, B_accum));
+        else
+            Cxxe_next = zeros(n_sub_channels, n_sub_channels, n_epochs);
+            for ep_idx = 1:n_epochs
+                Cxxe_next(:,:,ep_idx) = B_accum' * Cxxe_white(:,:,ep_idx) * B_accum;
+            end
         end
         Cxxe_curr = Cxxe_next;
         n_curr_channels = n_sub_channels;
@@ -130,98 +171,3 @@ end
 
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% HELPER FUNCTIONS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [v] = cov2upper(C)
-upper_mask = triu(true(size(C)));
-upper_triu_mask = triu(true(size(C)), 1);
-C(upper_triu_mask) = C(upper_triu_mask) * sqrt(2);
-v = C(upper_mask);
-v = v(:);
-end
-
-function C = upper2cov(v)
-n = (-1 + sqrt(1 + 8 * numel(v))) / 2;
-C = zeros(n);
-upper_mask = triu(true(n));
-C(upper_mask) = v;
-upper_triu_mask = triu(true(n), 1);
-C(upper_triu_mask) = C(upper_triu_mask) / sqrt(2);
-C = C + triu(C, 1)';
-end
-
-function [X_proj, U] = project_to_pc(X, min_var_explained)
-X = X - mean(X,2);
-[U, S, ~] = svd(X, "econ");
-S = diag(S);
-tol_rank = max(size(X)) * eps(S(1));
-r = sum(S > tol_rank);
-ve = S.^2;
-var_explained = cumsum(ve) / sum(ve);
-var_explained(end) = 1;
-tol = 1e-12;
-n_components = find(var_explained >= min_var_explained - tol, 1);
-if isempty(n_components)
-    n_components = r;
-end
-n_components = max(min(n_components, r), 1);
-U = U(:, 1:n_components);
-X_proj = U' * X;
-end
-
-function [Vx, Vy, Cxx, Cyy] = cca(X, Y, opt)
-gamma = opt.cca_reg;
-X = X - mean(X,1);  
-Y = Y - mean(Y,1);
-[n, ~] = size(X);
-Cxx = (X' * X) / (n-1);
-Cyy = (Y' * Y) / (n-1);
-Cxy = (X' * Y) / (n-1);
-scale_x = trace(Cxx) / size(Cxx,1);
-scale_y = trace(Cyy) / size(Cyy,1);
-Sxx_r = (1-gamma)*Cxx + gamma*scale_x*eye(size(Cxx));
-Syy_r = (1-gamma)*Cyy + gamma*scale_y*eye(size(Cyy));
-Rx = chol(Sxx_r, 'upper');
-Ry = chol(Syy_r, 'upper');
-K = Rx' \ (Cxy / Ry);            
-[Ux, ~, Uy] = svd(K, 'econ');
-Vx = Rx \ Ux; 
-Vy = Ry \ Uy; 
-end
-
-function opt = propertylist2struct(varargin)
-opt = [];
-if nargin==0
-  return;
-end
-if isstruct(varargin{1}) || isempty(varargin{1})
-  opt = varargin{1};
-  iListOffset = 1;
-else
-  iListOffset = 0;
-end
-nFields = (nargin-iListOffset)/2;
-for ff = 1:nFields
-  fld = varargin{iListOffset+2*ff-1};
-  opt.(fld) = varargin{iListOffset+2*ff};
-end
-end
-
-function [opt, isdefault] = set_defaults(opt, varargin)
-isdefault = [];
-if ~isempty(opt)
-  for Fld = fieldnames(opt)'
-    isdefault.(Fld{1}) = 0;
-  end
-end
-defopt = propertylist2struct(varargin{:});
-for Fld = fieldnames(defopt)'
-  fld = Fld{1};
-  if ~isfield(opt, fld)
-    [opt.(fld)] = deal(defopt.(fld));
-    isdefault.(fld) = 1;
-  end
-end
-end
